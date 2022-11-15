@@ -2,52 +2,89 @@
 #include "moneybag.h"
 
 
+constexpr void safeAdd(uint64_t& l, const uint64_t& r ){
+  uint64_t middle;
+  uint16_t extra;
+  middle = l/2;
+  extra = l - 2*middle;
+  middle += r/2;
+  extra += r -2*(r/2);
+
+  middle += extra/2;
+  // extra %= 2;
+  if (UINT64_MAX/2 <= middle){
+    throw std::out_of_range("when adding");
+  } 
+    l += r;
+}
+
 class Moneybag {
 public:
   typedef uint64_t coin_number_t;
 
-  Moneybag(const uint64_t& l, const uint64_t& s, const uint64_t& d){
-    denars = d;
-    solirs = s;
-    liwrs = l;
-  }
+  Moneybag(const uint64_t& l, const uint64_t& s, const uint64_t& d) 
+    : denars(d ), solirs(s), liwrs(l) {}
+  
+  
+  Moneybag(const Moneybag& mb )
+    : denars(mb.denars ), solirs(mb.solirs), liwrs(mb.liwrs) {}
+  Moneybag(Moneybag&& mb )
+    : denars(std::move(mb.denars) ), solirs(std::move(mb.solirs)), liwrs(std::move(mb.liwrs)) {}
 
+  // add two constructors from value(one with std::move())
+  ~Moneybag() {}
+  
   explicit operator bool() const{
     return denars || solirs || liwrs;
   }
+
+  Moneybag& operator=(const Moneybag& mb){
+    denars = mb.denars;
+    solirs = mb.solirs;
+    liwrs = mb.liwrs;
+    return *this;
+  }
+  Moneybag& operator=(Moneybag&& mb){
+    denars = std::move(mb.denars);
+    solirs = std::move(mb.solirs);
+    liwrs = std::move(mb.liwrs);
+    return *this;
+  }
+  
   bool operator==(const Moneybag& that){
-    // or should valuse be compared?
     return this->denars == that.denars &&
       this->solirs == that.solirs &&
       this->liwrs == that.liwrs;
   }
   bool operator>(const Moneybag& that){
-    if (this->liwrs > that.liwrs) return true;
-    if (this->liwrs < that.liwrs) return false;
-
-    if (this->solirs > that.solirs) return true;
-    if (this->solirs  < that.solirs) return false;
-
-    if (this->denars > that.denars) return true;
-    return false;
+    return (this->liwrs > that.liwrs || 
+      this->solirs > that.solirs ||
+      this->denars > that.denars) &&
+      (this->liwrs >= that.liwrs &&
+      this->solirs >= that.solirs &&
+      this->denars >= that.denars);
   }
 
   bool operator >=(const Moneybag& that) {
-    return this == &that || this > &that;
+     return *this > that || *this == that;
   }
 
   bool operator <(const Moneybag& that) {
-    return &that > this;
+    return Moneybag(that) > *this;
   }
 
   bool operator <=(const Moneybag& that) {
-    return &that >= this;
+    return Moneybag(that) >= *this;
   }
 
   Moneybag& operator+=(const Moneybag& that){
-    this->denars += that.denars;
-    this->solirs += that.solirs;
-    this->liwrs += that.liwrs;
+    safeAdd(this->denars, that.denars);
+    safeAdd(this->solirs, that.solirs);
+    safeAdd(this->liwrs, that.liwrs);
+    return *this;
+  }
+  Moneybag& operator+(const Moneybag& that){
+    *this += that;
     return *this;
   }
 
@@ -131,7 +168,7 @@ private:
   uint64_t amount;
 };
 
-void auxOut(std::ostream& os,const uint64_t count,const std::string& singular, const std::string& multiplies){
+inline void auxOut(std::ostream& os,const uint64_t count,const std::string& singular, const std::string& multiplies){
   os << count << " ";
   if (count == 1){
     os << singular;
@@ -139,7 +176,7 @@ void auxOut(std::ostream& os,const uint64_t count,const std::string& singular, c
     os << multiplies;
   }
 }
-std::ostream& operator<<(std::ostream& os, const Moneybag& bag) {
+inline std::ostream& operator<<(std::ostream& os, const Moneybag& bag) {
   os << "(";
   auxOut(os, bag.liwrs, "livr", "livres");
   os << ", ";
@@ -166,7 +203,6 @@ int main() {
     Moneybag m4(m1);
     m4 = m3;
 
-    cout << m4 << endl;
     // cout << m4 + m2 - Solidus << endl;
 
     Moneybag::coin_number_t s = m2.solidus_number();
@@ -177,6 +213,7 @@ int main() {
     assert(m1 >= m2);
     assert(m1 > m2);
     assert(!(m1 < m2));
+    // cout<< m3<<"\n"<<m4<<"\n";
     assert(m4 == m3);
 
     assert(Moneybag(2, 2, 1) >= Moneybag(2, 1, 1));
