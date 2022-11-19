@@ -17,6 +17,31 @@ constexpr void safeAdd(uint64_t& l, const uint64_t& r ){
     l += r;
 }
 
+constexpr void safeMultiplication(uint64_t& l, const uint64_t& r ){
+  const uint64_t HALFSIZE_MAX = (1ul << UINT64_WIDTH/2) - 1ul;
+  uint64_t lhs_high = l >> UINT64_WIDTH/2;
+  uint64_t lhs_low  = l & HALFSIZE_MAX;
+  uint64_t rhs_high = r >> UINT64_WIDTH/2;
+  uint64_t rhs_low  = r & HALFSIZE_MAX;
+
+  uint64_t bot_bits = lhs_low * rhs_low;
+  if (!(lhs_high || rhs_high)) {
+    l = bot_bits;
+    return; 
+  }
+       
+  uint16_t overflowed = lhs_high && rhs_high;
+  uint64_t mid_bits1 = lhs_low * rhs_high;
+  uint64_t mid_bits2 = lhs_high * rhs_low;
+
+  if(overflowed || (mid_bits1 >> UINT64_WIDTH/2) != 0
+    || (mid_bits2 >> UINT64_WIDTH/2) != 0){
+       throw std::out_of_range("during safeMultiplication");
+    }
+  safeAdd(bot_bits, ((mid_bits1+mid_bits2) << UINT64_WIDTH/2));
+  l = bot_bits;
+}
+
 class Moneybag {
 public:
   typedef uint64_t coin_number_t;
@@ -43,19 +68,20 @@ public:
     livres = mb.livres;
     return *this;
   }
-  /*constexpr Moneybag& operator=(Moneybag&& mb) {
+  constexpr Moneybag& operator=(Moneybag&& mb) {
     deniers = std::move(mb.deniers);
     soliduses = std::move(mb.soliduses);
     livres = std::move(mb.livres);
     return *this;
-  }*/
+  }
 
   friend constexpr bool operator==(const Moneybag& that, const Moneybag& t) {
     return t.deniers == that.deniers &&
       t.soliduses == that.soliduses &&
       t.livres == that.livres;
   }
-  /*constexpr bool operator>(const Moneybag& that){
+/*
+  constexpr bool operator>(const Moneybag& that){
     return (this->livres > that.livres ||
       this->soliduses > that.soliduses ||
       this->deniers > that.deniers) &&
@@ -63,11 +89,15 @@ public:
       this->soliduses >= that.soliduses &&
       this->deniers >= that.deniers);
   }
-
-  constexpr bool operator >=(const Moneybag& that) {
-     return *this > that || *this == that;
-  }*/
-
+  constexpr bool operator<(const Moneybag& that){
+    return (this->livres < that.livres ||
+      this->soliduses <that.soliduses ||
+      this->deniers < that.deniers) &&
+      (this->livres <= that.livres &&
+      this->soliduses <= that.soliduses &&
+      this->deniers <= that.deniers);
+  }
+*/
   constexpr Moneybag& operator+=(const Moneybag& that) {
     safeAdd(this->deniers, that.deniers);
     safeAdd(this->soliduses, that.soliduses);
@@ -89,9 +119,9 @@ public:
   }
 
   constexpr Moneybag& operator*=(uint64_t x) {
-    this->deniers *= x;
-    this->livres *= x;
-    this->soliduses *= x;
+    safeMultiplication(this->deniers,x);
+    safeMultiplication(this->livres,x);
+    safeMultiplication(this->soliduses,x);
     return *this;
   }
 
