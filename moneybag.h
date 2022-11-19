@@ -1,3 +1,7 @@
+/*Konrad Czarnecki
+  Jacek Muszyński
+*/
+
 #ifndef MONEYBAG_H
 #define MONEYBAG_H
 
@@ -80,24 +84,7 @@ public:
       t.soliduses == that.soliduses &&
       t.livres == that.livres;
   }
-/*
-  constexpr bool operator>(const Moneybag& that){
-    return (this->livres > that.livres ||
-      this->soliduses > that.soliduses ||
-      this->deniers > that.deniers) &&
-      (this->livres >= that.livres &&
-      this->soliduses >= that.soliduses &&
-      this->deniers >= that.deniers);
-  }
-  constexpr bool operator<(const Moneybag& that){
-    return (this->livres < that.livres ||
-      this->soliduses <that.soliduses ||
-      this->deniers < that.deniers) &&
-      (this->livres <= that.livres &&
-      this->soliduses <= that.soliduses &&
-      this->deniers <= that.deniers);
-  }
-*/
+
   constexpr Moneybag& operator+=(const Moneybag& that) {
     safeAdd(this->deniers, that.deniers);
     safeAdd(this->soliduses, that.soliduses);
@@ -105,7 +92,6 @@ public:
     return *this;
   }
 
-  //exception?
   constexpr Moneybag& operator-=(const Moneybag& that) {
     if (!(deniers >= that.deniers && soliduses >= that.soliduses && livres >= that.livres)) {
       throw std::out_of_range("out of range");
@@ -118,12 +104,26 @@ public:
     return *this;
   }
 
-  constexpr Moneybag& operator*=(uint64_t x) {
-    safeMultiplication(this->deniers,x);
-    safeMultiplication(this->livres,x);
-    safeMultiplication(this->soliduses,x);
+  /*constexpr Moneybag& operator*=(uint64_t x) {
+    
+      safeMultiplication(this->deniers,x);
+      safeMultiplication(this->livres,x);
+      safeMultiplication(this->soliduses,x);
+    
+    return *this;
+  }*/
+  //multiplication placeholder
+  constexpr Moneybag& operator *= (uint64_t x) {
+    if (x != 0 && UINT64_MAX / x < std::max(livres, std::max(deniers, soliduses))) {
+      throw std::out_of_range("out of range");
+    } else {
+      this -> deniers *= x;
+      this -> livres *= x;
+      this -> soliduses *= x;
+    }
     return *this;
   }
+
 
   constexpr coin_number_t solidus_number() const {
     return soliduses;
@@ -142,51 +142,46 @@ private:
 
 };
 
+constexpr std::partial_ordering operator <=> (const Moneybag& m1, const Moneybag& m2) {
+  uint64_t l1 = m1.livre_number(), l2 = m2.livre_number();
+  uint64_t s1 = m1.solidus_number(), s2 = m2.solidus_number();
+  uint64_t d1 = m1.denier_number(), d2 = m2.denier_number();
 
-//TODO
-constexpr std::partial_ordering operator<=>(const Moneybag& m1, const Moneybag& m2) {
-    std::strong_ordering liv = m1.livre_number() <=> m2.livre_number();
-    std::strong_ordering sol = m1.solidus_number() <=> m2.solidus_number();
-    std::strong_ordering den = m1.denier_number() <=> m2.denier_number();
-
-    if (std::is_eq(liv) && std::is_eq(sol) && std::is_eq(den)) {
-        return std::partial_ordering::equivalent;
-    }
-    if (std::is_lteq(liv) && std::is_lteq(sol) && std::is_lteq(den)) {
-        return std::partial_ordering::less;
-    }
-    if (std::is_gteq(liv) && std::is_gteq(sol) && std::is_gteq(den)) {
-        return std::partial_ordering::greater;
-    }
-    else return std::partial_ordering::unordered;
+  if (d1 == d2 && l1 == l2 && s1 == s2) {
+    return std::partial_ordering::equivalent;
+  }
+  if (d1 <= d2 && l1 <= l2 && s1 <= s2) {
+    return std::partial_ordering::less;
+  }
+  if (d1 >= d2 && l1 >= l2 && s1 >= s2) {
+    return std::partial_ordering::greater;
+  } else return std::partial_ordering::unordered;
 }
 
-
-constexpr const Moneybag operator *(const Moneybag& m1, uint64_t x) {
-    Moneybag m(m1);
-    m *= x;
-    return m;
+constexpr const Moneybag operator * (const Moneybag& m1, uint64_t x) {
+  Moneybag m(m1);
+  m *= x;
+  return m;
 }
 
-constexpr const Moneybag operator *(uint64_t x, const Moneybag& m1) {
-    Moneybag m(m1);
-    m *= x;
-    return m;
+constexpr const Moneybag operator * (uint64_t x, const Moneybag& m1) {
+  Moneybag m(m1);
+  m *= x;
+  return m;
 }
 
-constexpr const Moneybag operator +(const Moneybag& m1, const Moneybag& m2) {
-    Moneybag m(m1);
-    return m += m2;
+constexpr const Moneybag operator + (const Moneybag& m1, const Moneybag& m2) {
+  Moneybag m(m1);
+  return m += m2;
 }
 
-constexpr const Moneybag operator -(const Moneybag& m1, const Moneybag& m2) {
-    Moneybag m(m1);
-    return m -= m2;
+constexpr const Moneybag operator - (const Moneybag& m1, const Moneybag& m2) {
+  Moneybag m(m1);
+  return m -= m2;
 }
 constexpr Moneybag Livre = Moneybag(1, 0, 0);
 constexpr Moneybag Solidus = Moneybag(0, 1, 0);
 constexpr Moneybag Denier = Moneybag(0, 0, 1);
-
 
 class Value {
 public:
@@ -194,75 +189,73 @@ public:
     return amount;
   }
 
-  constexpr Value(const uint64_t& d)
-    : amount(d) {}
+  constexpr uint64_t get_over() const {
+    return over;
+  }
+  constexpr Value(const uint64_t& d): over(d / maxn), amount(d % maxn) {}
 
-
-  constexpr Value()
-    : amount(0) {}
-
+  constexpr Value(): over(0), amount(0) {}
 
   constexpr Value(const Moneybag& m) {
-    amount = m.denier_number() + 12 * m.solidus_number() + 240 * m.livre_number();
+    uint64_t tmp = 0;
+    amount = m.denier_number() % maxn;
+    over = m.denier_number() / maxn;
+    amount += 12 * (m.solidus_number() % maxn);
+    over += 12 * (m.solidus_number() / maxn);
+    amount += 240 * (m.livre_number() % maxn);
+    over += 240 * (m.livre_number() / maxn);
+    tmp = amount;
+    amount = amount % maxn;
+    tmp -= amount;
+    over += tmp / maxn;
+    
+
   }
 
-  constexpr bool operator ==(Value& that) {
-    return this->amount == that.get_amount();
-  }
+  constexpr bool operator == (const Value& that) const = default;//{
 
-  bool operator ==(uint64_t num) {
-    return this->amount == num;
-  }
-
+//TODO
   explicit operator std::string() const {
-      return std::to_string(amount);
+    std::ostringstream s;
+    if (over == 0) return std::to_string(amount);
+    s << std::to_string(over) << std::setfill('0') << std::setw(12) << std::to_string(amount);
+    return std::move(s).str();
   }
 
-  std::string toString() {
+  std::strong_ordering operator <=> (const Value& v2) const = default;
+
+  /*std::string toString() {
     std::ostringstream s;
     s << amount;
     return s.str();
-  }
-//need to handle big values
-private:
-  uint64_t amount;
-  //uint64_t big;
+  }*/
+
+  private:
+    uint64_t over;
+    uint64_t amount;
+    static const uint64_t maxn = 1000000000000;//10^12
 };
 
-inline std::strong_ordering operator<=>(const Value& v1, const Value& v2) {
-    return v1.get_amount() <=> v2.get_amount();
-}
 
-inline std::strong_ordering operator<=>(const Value& v1, const uint64_t& x) {
-    return v1.get_amount() <=> x;
-}
-
-inline std::strong_ordering operator<=>(const uint64_t& x, const Value& v) {
-    return x <=> v.get_amount();
-}
-
-constexpr bool operator ==(uint64_t x, const Value& v) {
-    return v.get_amount() == x;
-}
-inline void auxOut(std::ostream& os,const uint64_t count,const std::string& singular, const std::string& multiplies){
+inline void auxOut(std::ostream& os, const uint64_t count,
+    const std::string& singular, const std::string& multiplies) {
   os << count << " ";
-  if (count == 1){
+  if (count == 1) {
     os << singular;
-  } else{
+  } else {
     os << multiplies;
   }
 }
-inline std::ostream& operator<<(std::ostream& os, const Moneybag& bag) {
+inline std::ostream & operator << (std::ostream& os, const Moneybag& bag) {
   os << "(";
   auxOut(os, bag.livres, "livr", "livres");
   os << ", ";
   auxOut(os, bag.soliduses, "solidus", "soliduses");
   os << ", ";
   auxOut(os, bag.deniers, "denier", "deniers");
-   os << ")";
+  os << ")";
   return os;
 }
-
 
 #endif
 
